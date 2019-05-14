@@ -10,6 +10,7 @@ clc;
 
 srcpath = '~/src/matlab/nlvib/SRC';
 addpath(genpath(srcpath));
+savedata = true;
 
 %% Define system (undamped)
 
@@ -223,6 +224,9 @@ res_damp = nonlinear_damping( res_LMA, res_bb);
 names = [fieldnames(res_bb); fieldnames(res_damp)];
 res_NMA = cell2struct([struct2cell(res_bb); struct2cell(res_damp)], names, 1);
 
+if savedata
+    save('nma.mat','X_HB','H','simulation')
+end
 
 %% Compare modal characteristics for experiment and Harmonic Balance methods
 
