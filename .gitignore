@@ -3,3 +3,5 @@
 # ignore some simulink stuff
 *.slxc
 slprj/
+*.mat
+*.r2016b
