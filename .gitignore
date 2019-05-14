@@ -1,0 +1,5 @@
+*.m~
+*.~
+# ignore some simulink stuff
+*.slxc
+slprj/
