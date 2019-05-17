@@ -37,7 +37,6 @@ add_nonlinear_attachment(beam,nl_node,dir,'elasticdryfriction',...
     'stiffness',kt,'friction_limit_force',muN);
 
 %% Modal analysis the linearized system
-
 % Modes for free sliding contact
 [PHI_free,OM2] = eig(beam.K,beam.M);
 om_free = sqrt(diag(OM2));
@@ -75,51 +74,15 @@ PHI_fixed = PHI_fixed./repmat(sqrt(qq)',n,1);
 cc = diag(PHI_fixed'*beam.D*PHI_fixed);
 D = cc./(2*om_fixed); % modal damping ratios
 
-%% Nonlinear modal analysis using harmonic balance
-analysis = 'NMA';
-
-% Analysis parameters
-H = 9;             % harmonic order
-Ntd = 2^10;         % number of time samples per period
-imod = 1;           % mode to be analyzed
-log10a_s = -5.7;    % start vibration level (log10 of modal mass)
-log10a_e = -3;       % end vibration level (log10 of modal mass)
-inorm = 2;          % coordinate for phase normalization
-
-% Initial guess vector x0 = [Psi;om;del], where del is the modal
-% damping ratio, estimate from underlying linear system
-om = om_fixed(imod); phi = PHI_fixed(:,imod);
-Psi = zeros((2*H+1)*n,1);
-Psi(n+(1:n)) = phi;
-x0 = [Psi;om;D(1)];
-
-% Solve and continue w.r.t. Om
-ds = .05;
-fscl = mean(abs(beam.K*phi));
-X_HB = solve_and_continue(x0,...
-    @(X) HB_residual(X,beam,H,Ntd,analysis,inorm,fscl),...
-    log10a_s,log10a_e,ds);
-
-% Interpret solver output
-Psi_HB = X_HB(1:end-3,:);
-om_HB = X_HB(end-2,:);
-del_HB = X_HB(end-1,:);
-log10a_HB = X_HB(end,:);
-a_HB = 10.^log10a_HB;
-Q_HB = Psi_HB.*repmat(a_HB,size(Psi_HB,1),1);
-% fundamental harmonic motion
-Y_HB_1 = Q_HB(n+(1:n),:)-1i*Q_HB(2*n+(1:n),:);
-
-
 
 %% Setup simulated experiments
-
-exc_node = 8; % node for external excitation
-simtime = 30;   % Simulation time in seconds
-phase_lag = 90; % phase lag in degree
+imod = 1;           % mode to be analyzed
+exc_node = 8;       % node for external excitation
+simtime = 30;       % Simulation time in seconds
+phase_lag = 90;     % phase lag in degree
 
 x0beam = 0; % intial condition beam integrator
-x0vco = 0; % initial condition VCO integrator
+x0vco = 0;  % initial condition VCO integrator
 
 % PLL controller
 P = 5; % proportional gain
@@ -152,7 +115,6 @@ T_disp = [eye(n,n) zeros(n,n)];
 
 
 %% shaker model
-
 % source: Master thesis Florian Morlock, INM, University of Stuttgart
 
 %%%%% mechanical parameters
@@ -224,25 +186,22 @@ res_damp = nonlinear_damping( res_LMA, res_bb);
 names = [fieldnames(res_bb); fieldnames(res_damp)];
 res_NMA = cell2struct([struct2cell(res_bb); struct2cell(res_damp)], names, 1);
 
-if savedata
-    save('nma.mat','X_HB','H','simulation')
-end
 
-%% Compare modal characteristics for experiment and Harmonic Balance methods
-
-% Modal frequency vs. amplitude
-figure;
-semilogx(abs(Y_HB_1(2*(exc_node-1-1)+1,:)),om_HB/om_fixed(imod),'g-');
-hold on
-semilogx(abs(res_NMA.Psi_tilde_i(opt.NMA.eval_DOF,:)),res_NMA.om_i/(res_LMA.freq(1)*2*pi),'k.','MarkerSize',10)
-xlabel('amplitude in m'); ylabel('\omega/\omega_0')
-legend('NMA with NLvib','simulated experiment')
-
-
-% Modal damping ratio vs. amplitude
-figure; 
-semilogx(abs(Y_HB_1(2*(exc_node-1-1)+1,:)),del_HB*1e2,'g-');
-hold on
-semilogx(abs(res_NMA.Psi_tilde_i(opt.NMA.eval_DOF,:)),abs(res_NMA.del_i_nl)*100,'k.','MarkerSize',10)
-xlabel('amplitude in m'); ylabel('modal damping ratio in %')
-legend('NMA with NLvib','simulated experiment')
+% %% Compare modal characteristics for experiment and Harmonic Balance methods
+% 
+% % Modal frequency vs. amplitude
+% figure;
+% semilogx(abs(Y_HB_1(2*(exc_node-1-1)+1,:)),om_HB/om_fixed(imod),'g-');
+% hold on
+% semilogx(abs(res_NMA.Psi_tilde_i(opt.NMA.eval_DOF,:)),res_NMA.om_i/(res_LMA.freq(1)*2*pi),'k.','MarkerSize',10)
+% xlabel('amplitude in m'); ylabel('\omega/\omega_0')
+% legend('NMA with NLvib','simulated experiment')
+% 
+% 
+% % Modal damping ratio vs. amplitude
+% figure; 
+% semilogx(abs(Y_HB_1(2*(exc_node-1-1)+1,:)),del_HB*1e2,'g-');
+% hold on
+% semilogx(abs(res_NMA.Psi_tilde_i(opt.NMA.eval_DOF,:)),abs(res_NMA.del_i_nl)*100,'k.','MarkerSize',10)
+% xlabel('amplitude in m'); ylabel('modal damping ratio in %')
+% legend('NMA with NLvib','simulated experiment')

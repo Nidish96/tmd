@@ -81,11 +81,11 @@ beam.D = alpha*beam.M + beta*K_ex;
 analysis = 'FRF';
 
 % Analysis parameters
-H = 11;                      % harmonic order
+H = 13;                      % harmonic order
 N = 2^10;                    % number of time samples per period
 % freq interval. We go from high to low, as the peak is bent towards left
-Om_s = 1.5*om_fixed(1);     % start frequency
-Om_e = .7*om_free(1);       % end frequency
+% Om_s = 1.5*om_fixed(1);     % start frequency
+% Om_e = .7*om_free(1);       % end frequency
 Om_e = 500;
 Om_s = 200;
 
@@ -112,19 +112,25 @@ for iex=1:length(exc_lev)
     Fex1 = beam.Fex1;
     % Q1 = B*((B'*(-Om_s^2*beam.M + 1i*Om_s*beam.D + K_ex)*B)\(B'*Fex1));
     Q1 = (-Om_s^2*beam.M + 1i*Om_s*beam.D + beam.K + dKfric)\Fex1;
-
+    
     x0 = zeros((2*H+1)*size(Q1,1),1);
     x0(size(Q1,1)+(1:2*size(Q1,1))) = [real(Q1);-imag(Q1)];
 
     % Solve and continue w.r.t. Om
-    ds = 50; % (Om_e+Om_s)/2;% 
+    ds = 1;
     % Set options of path continuation
     % flag = 0: no actual continuation, just sequential continuation
     % stepadatp = 0: no automatic step size adjustment
-    Dscale = [1e-6*ones(length(x0),1);(Om_s+Om_e)/2];
-    Sopt = struct('stepadatp', 1,'errmax',8,'stoponerror',0,...%'eps',1e-8,...
-        'Dscale',Dscale,'dynamicDscale',1,'jac','full','stepmax',1e4);
-      %,'noconv_stepcor','red',...
+    
+    % introduce a 'scaling' depending on the excitation level. For this,
+    % the linear resonant response level, assuming sticking conditions, and
+    % applying a truncation to a single mode, is determined analytically.
+    % The scaling vector for the displacement unknowns is then defined
+    % accordingly. In my experience, this makes a lot of sense if you want
+    % to cover a large range of excitation levels.
+    aref = abs((PHI_fixed(:,1)'*Fex1)/(2*D1*om_fixed(1)^2));
+    Dscale = [1e1*aref*ones(length(x0),1); (Om_s+Om_e)/2];
+    Sopt = struct('Dscale',Dscale,'dynamicDscale',1);
     X_HB = solve_and_continue(x0,...
         @(X) HB_residual(X,beam,H,N,analysis),...
         Om_s,Om_e,ds,Sopt);
@@ -138,40 +144,5 @@ for iex=1:length(exc_lev)
     Qtip_rms_HB{iex} = sqrt(sum(Qtip_HB.^2))/sqrt(2);
 end
 
-%% NMA results (for backbone calculation)
-
-nma = load('nma.mat');
-H_nma = nma.H;
-X_HB_nma = nma.X_HB;
-Psi_HB = X_HB_nma(1:end-3,:);
-om_HB_nma = X_HB_nma(end-2,:);
-del_HB_nma = X_HB_nma(end-1,:);
-log10a_NMA = X_HB_nma(end,:);
-a_NMA = 10.^log10a_NMA;
-Q_HB_nma = Psi_HB.*repmat(a_NMA,size(Psi_HB,1),1);
-
-% Determine harmonics and root-mean-square value of tip displacement
-Qtip_HB_nma = kron(eye(2*H_nma+1),T_tip)*Q_HB_nma;
-Qtip_rms_HB_nma = sqrt(sum(Qtip_HB_nma.^2))/sqrt(2);
-
-%% Frequency response of Harmonic Balance and backbone from NMA
-figure; hold on;
-% plot(OM,Qtip_fixed,'-','color',.75*[1 1 1]);
-plot(om_HB_nma,Qtip_rms_HB_nma,'k-', 'LineWidth',2);
-
-% set(0,'defaultAxesColorOrder',[1 0 0;0 1 0;0 0 1],...
-%       'defaultAxesLineStyleOrder','-|--|:')
-set(gca,'ColorOrder',[1 0 0;0 1 0;0 0 1],...
-    'LineStyleOrder','-|--|:')
-slabel = cell(1,length(exc_lev));
-for iex=1:length(exc_lev)
-    plot(OM_HB{iex},Qtip_rms_HB{iex}, 'LineWidth',2);
-    slabel{iex} = sprintf('HB, fex=%0.2f',exc_lev(iex));
-end
-set(gca,'yscale','log');
-xlabel('excitation frequency'); ylabel('tip displacement amplitude');
-legend(['nm - backbone',slabel],'Location','se');
-title(sprintf('HB par: H:%d, N:%d, ds:%0.2f',H,N,ds))
-
-% set(groot,'defaultAxesLineStyleOrder','remove')
-% set(groot,'defaultAxesColorOrder','remove')
+save('hb.mat','OM_HB','Q_HB','Qtip_HB','Qtip_rms_HB','beam','exc_lev',...
+    'H','N','ds','n_nodes')

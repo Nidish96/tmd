@@ -50,7 +50,7 @@ Zetas = diag(Vst'*beam.D*Vst)./(2*Dst);
 
 %% Frequency Response
 analysis = 'FRF';
-Nh = 9;
+Nh = 3;
 Nhc = 2*Nh+1;
 Nd = size(beam.M, 1);
 Nt = 2^10;
