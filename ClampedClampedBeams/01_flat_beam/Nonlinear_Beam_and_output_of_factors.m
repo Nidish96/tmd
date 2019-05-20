@@ -57,7 +57,7 @@ for imod=1:Nmod
     
     mst = integral(@(x) rhoA*phi(x).^2,0,L);
     
-    test = integral(@(x) rhoA*phi(x).*phi(x),0,L)
+    test = integral(@(x) rhoA*phi(x).*phi(x),0,L);
     
     C(:,imod) = C(:,imod)/sqrt(mst);
     phi = @(x) C(1:4,imod)'*Wt(kmod(imod),x);
@@ -102,6 +102,8 @@ for ii=1:500
     PHI_x(ii,:)=PHI(x);
 end
 figure; plot(x_lsp/L,PHI_x); xlim([0 x_lsp(end)/L]), grid
+xlabel('X coordinate (m)')
+ylabel('Y deflection magnitude')
 % legend('1','2','3','4','5','6','7','8','9','10')
 
 % mu = @(i,j,k,n) (-E/(2*L*rho)*quadgk(@(x) ...
@@ -153,12 +155,12 @@ for rr = 1:Nmod
     end
 end
 
-% plot and label everything...
-figure('units','normalized','outerposition',[-1 0 1 1])
-
-bar(1:counter-1,[bar_data']), hold on
-
-ylabel('$\mathrm{sign}(b)\cdot \mathrm{log}_{10}(|b|)$')
-set(gca, 'XTick', 1:counter-1)
-set(gca,'xticklabel',label_data)
-grid
+% % plot and label everything...
+% figure('units','normalized','outerposition',[-1 0 1 1])
+% 
+% bar(1:counter-1,[bar_data']), hold on
+% 
+% ylabel('$\mathrm{sign}(b)\cdot \mathrm{log}_{10}(|b|)$')
+% set(gca, 'XTick', 1:counter-1)
+% set(gca,'xticklabel',label_data)
+% grid

@@ -118,7 +118,7 @@ Om_s = 5*om(1);     % end frequency
 
 % Excitation levels
 exc_lev = [30];
-Om = cell(size(exc_lev));
+X = cell(size(exc_lev));
 for iex=1:length(exc_lev)
     % Set excitation level
     oscillator.Fex1 = Fex1*exc_lev(iex);
@@ -134,38 +134,14 @@ for iex=1:length(exc_lev)
         
     Dscale = [1e-6*ones(length(y0),1);(Om_s+Om_e)/2];
     Sopt = struct('Dscale',Dscale,'dynamicDscale',1,'jac','full','stepmax',1e4);
-    X = solve_and_continue(y0,...
+    X{iex} = solve_and_continue(y0,...
         @(X) HB_residual(X,oscillator,H,N,analysis),...
         Om_s,Om_e,ds,Sopt);
     
-    % Interpret solver output
-    Om{iex} = X(end,:);
-    Q_HB = X(1:end-1,:);
-       
-    % Define amplitude as magnitude of the fundamental harmonic of the
-    % first coordinate's displacement
-    tau = linspace(0,2*pi,Ntd+1); tau = tau(1:end-1);    
-    w_L_2_sum = zeros(Ntd,length(Om{1}));                                   % lines = time steps, columns = continuation points
-    for k = 1:n
-        Qc{k} = [Q_HB(k,:);Q_HB(n+k:2*n:end,:)-1i*Q_HB(2*n+k:2*n:end,:)];   % get complex coefficients
-        w_L_2{k} = PHI_L_2(k)*real(exp(1i*tau(:)*(0:H))*Qc{k});             % get displacement at center caused by each mode in time domain
-        w_L_2_sum = [w_L_2_sum + w_L_2{k}];                                 % sum up to actual displacement at center in time domain
-        
-        q{k} = real(exp(1i*tau(:)*(0:H))*Qc{k});
-        a_q(k,:) = (max((q{k}))-min((q{k})))/2;
-    end
-    
-    a_w_L_2= (max((w_L_2_sum))-min((w_L_2_sum)))/2;                         % compute peak to peak amplitude
-    
 end
 
-% Illustrate frequency response
-figure; hold on; box on
-plot(Om{1}/2/pi,a_w_L_2*1000,'k-','linewidth',1.5);
-xlabel('$f_{\mathrm{ex}}$ in Hz');
-ylabel('$\hat{w}_{L/2}$ in mm');
-title(['thickness = ' num2str(thickness*1000) 'mm, $\hat{\ddot{a}}_0=$' num2str(exc_lev) 'm/s$^2$']);
-    
+save('frf.mat','X','ds','H','Ntd','exc_lev','oscillator','n')
+
 %% NMA
 H=7;
 N=2*3*H+1;
@@ -192,48 +168,10 @@ x0 = [Psi;om;0];
 ds      = .1;
 Sopt    = struct('Dscale',[1e-6*ones(size(x0,1)-2,1);1;1e-1;1],...
     'dynamicDscale',1,'stepmax',5e4);
-[X_HB,Solinfo,Sol] = solve_and_continue(x0,...
+[X,Solinfo,Sol] = solve_and_continue(x0,...
     @(X) HB_residual(X,oscillator,H,N,analysis,inorm),...
     log10a_s,log10a_e,ds, Sopt);
 
-Psi_HB = X_HB(1:end-3,:);
-om_HB = X_HB(end-2,:);
-del_HB = X_HB(end-1,:);
-log10a_NMA = X_HB(end,:);
-a_NMA = 10.^log10a_NMA;
-Q_HB = Psi_HB.*repmat(a_NMA,size(Psi_HB,1),1);
-
-% Define amplitude as magnitude of the fundamental harmonic of the
-% first coordinate's displacement
-tau = linspace(0,2*pi,Ntd+1); tau = tau(1:end-1);
-w_L_2_NMA_sum = zeros(Ntd,length(om_HB));                                   % lines = time steps, columns = continuation points
-for k = 1:n
-    Qc_NMA{k} = [Q_HB(k,:);Q_HB(n+k:2*n:end,:)-1i*Q_HB(2*n+k:2*n:end,:)];   % get complex coefficients
-    w_L_2_NMA{k} = PHI_L_2(k)*real(exp(1i*tau(:)*(0:H))*Qc_NMA{k});         % get displacement at center caused by each mode in time domain
-    w_L_2_NMA_sum = [w_L_2_NMA_sum + w_L_2_NMA{k}];                         % sum up to actual displacement at center in time domain
-    
-    q_NMA{k} = real(exp(1i*tau(:)*(0:H))*Qc_NMA{k});
-    a_q_NMA(k,:) = (max((q_NMA{k}))-min((q_NMA{k})))/2;
-end
-
-a_w_L_2_NMA= (max((w_L_2_NMA_sum))-min((w_L_2_NMA_sum)))/2;                 % compute peak to peak amplitude
+save('nma.mat','Solinfo','Sol','X','ds','H','n','imod')
 
 
-%% plots
-
-figure;
-hold on
-plot(om_HB/2/pi,1000*abs(a_w_L_2_NMA),'color',[1 .2 .3],'linewidth',1.5)
-plot(Om{1}/2/pi,a_w_L_2*1000,'k-','linewidth',1.5);
-xlim([200 400])
-xlabel('$f_{\mathrm{ex}}$ in Hz');
-ylabel('$\hat{w}_{L/2}$ in mm');
-title(['thickness = ' num2str(thickness*1000) 'mm, $\hat{\ddot{a}}_0=$' num2str(exc_lev) 'm/s$^2$']);
-
-figure;
-plot(om_HB/2/pi,a_q_NMA,'linewidth',1.5)
-legend('$q_1$ (first bending)','$q_2$ (second bending)','$q_3$ (third bending)')
-xlabel('$\omega$ in Hz');
-ylabel('modal coordinates $q$ of NMA')
-xlim([min(om_HB/2/pi) max(om_HB/2/pi)]);
-title(['thickness = ' num2str(thickness*1000) 'mm, $\hat{\ddot{a}}_0=$' num2str(exc_lev) 'm/s$^2$']);
