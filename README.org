@@ -1,0 +1,43 @@
+* Multisine
+We generate a multisine using the PNLSS toolbox[1], specifying number of =N= samples(related to fs), =P= periods(number of time the same signal is repeated), =R= realizations(where the phases are randomly drawn again) and =kind=str('full')= meaning that all frequency lines up till nyquist freq is excited.
+
+[u,lines,non_exc_odd,non_exc_even] = fMultisine(N, , M, R);
+u = u/rms(u(:,1))*RMSu; % Scale multisine to the correct rms level
+u = repmat(u,[1 1 P]);  % N x R x P
+u = permute(u,[1 3 2]); % N x P x R
+u_ext = u(:); % Concatenate the data: N*P*R
+
+Note that the magnitude of the 0-frequency term is zero.
+
+To use ode45, we need to interpolate the multisine. But do we destroy the frequency content? Yes!
+fex = @(t) interp1(time, u_ext, t, 'linear');
+
+So we cannot use ode45 with =u_ext=, as it is not possible to force fixed time steps. We now have two options.
+
+1) Use a fixed time-step ode solver
+2) Use a time-domain formulation of multisine with ode45
+
+1) is somewhat straight forward. ode45 is using dopri[2], so from the Butcher tableau we find a 5-order accurate solution[3].
+   Why - or why not - we should use a higher order method, I do not know. Higher order methods requires move function evaluations per time step, so unless needed we should not go for them. I know that for celestial mechanics, eq. oscillations over large time scales, they need higher order methods. A former post.doc in our group used his own Prince-Dormand method of order 8, justified in [4].
+
+2) The time formulation looks like this:
+
+   y(t) = 1/sqrt(A) * \sum_{n=1}^N A_n \sin(2\pi n f_0 t + \phi_n)
+   with \phi_n ~ U[0, 2\pi[
+   f_0 is the frequency resolution.
+
+   In matlab:
+   % define harmonic content and draw the random phases
+   har = ones(f2/f0,1); % excite all lines
+   phase = 2*pi*rand(length(har),1);
+   fex = @(t) har'*A*cos(2*pi*(1:N)'*f0*t + phase) / sqrt(sum(har));
+
+   and a file:
+   https://github.com/pawsen/tmd/blob/master/ClampedClampedBeams/01_flat_beam/ode45_multisine.m
+
+[1]
+http://homepages.vub.ac.be/~ktiels/pnlss.html
+[2]
+https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Dormand%E2%80%93Prince
+[4]
+https://link.springer.com/article/10.1007/BF00049361

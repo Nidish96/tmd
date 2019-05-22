@@ -42,60 +42,14 @@ thickness = .001;
 PHI_L_2 = PHI(L/2);
 
 % load nonlinear coefficients (can be found e.g. analytically)
-load(['beam_New_Design_Steel_analytical_5t_' num2str(thickness*1000) 'mm.mat'])
-model.b=b;
+fname = ['beam_New_Design_Steel_analytical_5t_' ...
+    num2str(thickness*1000) 'mm.mat'];
+[p, E] = nlcoeff(fname, Nmod);
 
 % Properties of the underlying linear system
 M = eye(Nmod);
 D = diag(2*Dmod(:).*om(:));
 K = diag(om.^2);
-
-% polynomial terms
-p_quad = zeros(sum(1:Nmod),Nmod);
-p_cub = zeros(sum(cumsum(1:Nmod)),Nmod);
-ctr_quad = 1; ctr_cub = 1;
-
-for jj = 1:Nmod
-    for kk = jj:Nmod
-        % quadratic terms
-        p_quad(ctr_quad,jj) = p_quad(ctr_quad,jj)+1;
-        p_quad(ctr_quad,kk) = p_quad(ctr_quad,kk)+1;
-        ctr_quad = ctr_quad+1;
-        for ll = kk:Nmod
-            % cubic terms
-            p_cub(ctr_cub,jj) = p_cub(ctr_cub,jj)+1;
-            p_cub(ctr_cub,kk) = p_cub(ctr_cub,kk)+1;
-            p_cub(ctr_cub,ll) = p_cub(ctr_cub,ll)+1;
-            ctr_cub = ctr_cub+1;
-        end
-    end
-end
-
-p = [p_cub];
-
-% coefficients
-E=zeros(sum(cumsum(1:Nmod)),Nmod);
-
-for rr = 1:Nmod
-    ctr = 1;
-%         for jj = 1:Nmod
-%             for kk = jj:Nmod
-%                 % quadratic coeffs
-%                 E(ctr,rr) = model.a(jj,kk,rr);
-%                 ctr = ctr+1;
-%             end
-%         end
-%         ctr = 1;
-    for jj = 1:Nmod
-        for kk = jj:Nmod
-            for ll = kk:Nmod
-                % cubic coeffs
-                E(ctr,rr) = model.b(jj,kk,ll,rr);
-                ctr = ctr+1;
-            end
-        end
-    end
-end
 
 % Fundamental harmonic of external forcing
 Fex1 = gam;
@@ -140,7 +94,7 @@ for iex=1:length(exc_lev)
     
 end
 
-save('frf.mat','X','ds','H','Ntd','exc_lev','oscillator','n')
+% save('frf.mat','X','ds','H','Ntd','exc_lev','oscillator','n')
 
 %% NMA
 H=7;
@@ -173,5 +127,3 @@ Sopt    = struct('Dscale',[1e-6*ones(size(x0,1)-2,1);1;1e-1;1],...
     log10a_s,log10a_e,ds, Sopt);
 
 save('nma.mat','Solinfo','Sol','X','ds','H','n','imod')
-
-
