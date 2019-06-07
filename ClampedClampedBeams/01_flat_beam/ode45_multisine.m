@@ -68,7 +68,10 @@ for r=1:R
     rng(r);
     % multisine in time domain (sum of sines)
     phase = 2*pi*rand(N,1);
-    fex = @(t) har'*A*cos(2*pi*(1:N)'*f0*t + phase) / sqrt(sum(har));
+    
+    % Gotta localize the frequency content in the required range :)
+    freqs = linspace(f1, f2, N)';  
+    fex = @(t) har'*A*cos(2*pi*freqs*t + phase) / sqrt(sum(har));
 
     par = struct('M',M,'C',D,'K',K,'p',p,'E',E,'fex',fex, 'amp', Fex1);
     [tout,Y] = ode45(@(t,y) sys(t,y, par), t,[q0;u0]);
